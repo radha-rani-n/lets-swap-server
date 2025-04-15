@@ -16,8 +16,17 @@ app.get("/", (req, res) => {
 app.listen(PORT, async () => {
   console.log("Server is listening to port" + PORT);
   try {
-    const allUsers = await prisma.post.findMany();
-    console.log(allUsers);
+    const allPosts = await prisma.post.create({
+      data: {
+        userName: "Radha",
+        postId: "2",
+        plantImageUrl:
+          "https://www.vecteezy.com/photo/49506411-cute-puppy-lying-on-wooden-floor-in-brightly-lit-room-showcasing-playful-demeanor",
+        locationLatitude: 43.88998,
+        locationLongitude: 78.87935,
+      },
+    });
+    console.dir(allPosts);
   } catch (e) {
     console.error(e);
   } finally {
