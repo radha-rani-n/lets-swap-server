@@ -1,7 +1,8 @@
 import express from "express";
 import { PrismaClient } from "../generated/prisma";
 import { v4 as uuidv4 } from "uuid";
-import { clerkClient, requireAuth } from "@clerk/express";
+import { clerkClient, getAuth, requireAuth } from "@clerk/express";
+import { error } from "console";
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -54,6 +55,27 @@ const addPost = async (req: any, res: any) => {
   }
 };
 
+const deletePost = async (req, res) => {
+  const { userId } = getAuth(req);
+  const user = await clerkClient.users.getUser(userId);
+  try {
+    const { postId } = req.params;
+    const post = await prisma.post.findUnique({
+      where: { postId: postId, userName: user.username ?? "" },
+    });
+    if (!post) {
+      return res.status(404).json({ error: `Post ID ${postId} not found` });
+    }
+    await prisma.post.delete({
+      where: { userName: user.username ?? "", postId: postId },
+    });
+  } catch (e: any) {
+    res.status(500).json({
+      error: `Error deleting post ${req.params.postProps}: ${e.meaasage}`,
+    });
+  }
+};
 router.get("/", getPosts);
 router.post("/", addPost);
+router.delete("/", deletePost);
 export default router;
