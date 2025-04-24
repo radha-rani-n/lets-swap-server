@@ -25,9 +25,14 @@ const getAllPosts = async (req: any, res: any) => {
 const getUserPosts = async (req: any, res: any) => {
   const userId = req.auth.userId;
   const user: User = await clerkClient.users.getUser(userId);
-  const userPosts = await prisma.post.findMany({
-    where: { userName: user.username ?? undefined },
-  });
+  try {
+    const userPosts = await prisma.post.findMany({
+      where: { userName: user.username ?? undefined },
+    });
+    res.status(200).json(userPosts);
+  } catch (e) {
+    console.error(e);
+  }
 };
 const addPost = async (req: any, res: any) => {
   const userId = req.auth.userId;
@@ -84,6 +89,8 @@ const deletePost = async (req: any, res: any) => {
   }
 };
 router.get("/", getAllPosts);
+router.get("/userPosts", getUserPosts);
 router.post("/", addPost);
 router.delete("/", deletePost);
+
 export default router;
