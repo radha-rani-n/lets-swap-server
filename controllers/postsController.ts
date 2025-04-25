@@ -5,6 +5,7 @@ import { clerkClient, getAuth, requireAuth } from "@clerk/express";
 const prisma = new PrismaClient();
 const router = express.Router();
 import { User } from "@clerk/express";
+import { Request, Response } from "express";
 
 type postProps = {
   userName: string;
@@ -25,9 +26,13 @@ const getAllPosts = async (req: any, res: any) => {
 const getUserPosts = async (req: any, res: any) => {
   const userId = req.auth.userId;
   const user: User = await clerkClient.users.getUser(userId);
+  const username = user.username;
+  if (!username) {
+    return res.status(400).json({ error: "Username not found for the user" });
+  }
   try {
     const userPosts = await prisma.post.findMany({
-      where: { userName: user.username ?? undefined },
+      where: { userName: user.username },
     });
     res.status(200).json(userPosts);
   } catch (e) {
