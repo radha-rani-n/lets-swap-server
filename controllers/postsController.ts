@@ -10,6 +10,7 @@ import { Request, Response } from "express";
 type postProps = {
   userName: string;
   postId: string;
+  caption: string;
   plantImageUrl: string;
   locationLatitude: number;
   locationLongitude: number;
@@ -46,7 +47,7 @@ const addPost = async (req: any, res: any) => {
   console.log("BODY RECEIVED:", req.body);
   const {
     postId,
-
+    caption,
     plantImageUrl,
     locationLatitude,
     locationLongitude,
@@ -62,6 +63,7 @@ const addPost = async (req: any, res: any) => {
         locationLatitude,
         locationLongitude,
         postId,
+        caption,
       },
     });
     res.status(200).json(addNewPost);
@@ -96,6 +98,6 @@ const deletePost = async (req: any, res: any) => {
 router.get("/", getAllPosts);
 router.get("/userPosts", getUserPosts);
 router.post("/", addPost);
-router.delete("/", deletePost);
+router.delete("/:postId", deletePost);
 
 export default router;
