@@ -2,3 +2,6 @@
 node_modules
 dist
 generated/prisma/
+firebase.ts
+
+serviceAccountKey.json

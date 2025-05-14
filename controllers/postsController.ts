@@ -5,7 +5,6 @@ import { clerkClient, getAuth, requireAuth } from "@clerk/express";
 const prisma = new PrismaClient();
 const router = express.Router();
 import { User } from "@clerk/express";
-import { Request, Response } from "express";
 
 type postProps = {
   userName: string;
