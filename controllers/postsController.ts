@@ -25,6 +25,7 @@ const getAllPosts = async (req: any, res: any) => {
 };
 const getUserPosts = async (req: any, res: any) => {
   const userId = req.auth.userId;
+  console.log(userId);
   const user: User = await clerkClient.users.getUser(userId);
   const username = user.username;
   if (!username) {
