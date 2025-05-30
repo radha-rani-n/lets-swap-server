@@ -9,12 +9,8 @@ type Chat = {
   senderName: string;
 };
 
-const {
-  initializeApp,
-
-  cert,
-} = require("firebase-admin/app");
-const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+import { initializeApp, cert } from "firebase-admin/app";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 const serviceAccount = require("./serviceAccountKey.json");
 
 initializeApp({
@@ -39,17 +35,18 @@ const sendMessages = async (req: any, res: any) => {
   const { username } = await clerkClient.users.getUser(userId);
 
   const { text, receipientID } = req.body;
-  console.log(text);
-  console.log(receipientID);
+
   if (!receipientID || !text) {
-    console.log("error here");
     return res.status(400).json({ error: "Missing Fields" });
   }
+  console.log(username);
 
-  const chatId = [userId, receipientID].sort().join("_");
   try {
-    console.log("at step1");
-    const chatDocument = chatCollection.doc(chatId);
+    const chatId = [username, receipientID].join("_");
+    const chatDocument = await chatCollection.doc(chatId);
+    chatDocument.set({
+      user: username,
+    });
     const messagesCollection = chatDocument.collection("messages");
 
     await messagesCollection.add({
@@ -69,7 +66,7 @@ const getMessages = async (req: any, res: any) => {
   const { receiverId } = req.query;
 
   const userId = await getUserId(req, res);
-  console.log(receiverId);
+
   if (!receiverId) return res.status(400).json({ error: "Missing receiverId" });
   const chatId = [userId, receiverId].sort().join("_");
   try {
@@ -93,20 +90,30 @@ const getMessages = async (req: any, res: any) => {
 };
 
 const getAllChats = async (req: any, res: any) => {
-  // const userId = await getUserId(req, res);
   try {
-    const allChats = await chatCollection.get();
-    // .doc()
-    // .collection("messages")
-    // .orderBy("timestamp")
+    const snapshot = await db.collection("chats").get();
 
-    // const chats = allChats.docs.map((doc: any) => doc.data());
+    const messages = snapshot.docs.map((doc: any) => {
+      return {
+        id: doc.id,
+        ...doc.data(),
+      };
+    });
+    const chatId = messages[0].id;
+    const snapshot2 = await db
+      .collection("chats")
+      .doc(chatId)
+      .collection("messages")
+      .get();
 
-    // if (chats.length === 0) {
-    //   return res.status(404).json({ error: "No chats found" });
-    // }
-
-    res.status(200).json({ allChats });
+    const messages2 = snapshot2.docs.map((doc: any) => {
+      return {
+        id: doc.id,
+        ...doc.data(),
+      };
+    });
+    console.log(messages2[0]);
+    res.status(200).json({ messages2 });
   } catch (e) {
     console.error(e);
     res.status(500).send("Failed to fetch chats", e);
