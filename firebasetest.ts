@@ -44,7 +44,7 @@ const sendMessages = async (req: any, res: any) => {
   try {
     const chatId = [username, receipientID].join("_");
     const chatDocument = await chatCollection.doc(chatId);
-    chatDocument.set({
+    await chatDocument.set({
       user: username,
     });
     const messagesCollection = chatDocument.collection("messages");
@@ -68,7 +68,7 @@ const getMessages = async (req: any, res: any) => {
   const userId = await getUserId(req, res);
 
   if (!receiverId) return res.status(400).json({ error: "Missing receiverId" });
-  const chatId = [userId, receiverId].sort().join("_");
+  const chatId = [userId, receiverId].join("_");
   try {
     const snapshot = await chatCollection
       .doc(chatId)
@@ -89,31 +89,42 @@ const getMessages = async (req: any, res: any) => {
   }
 };
 
+type MessageType = {
+  sender: string;
+  receiver: string;
+  text: string;
+  time: string;
+};
+
 const getAllChats = async (req: any, res: any) => {
+  const userId = await getUserId(req, res);
+  const { username } = await clerkClient.users.getUser(userId);
+
   try {
-    const snapshot = await db.collection("chats").get();
-
-    const messages = snapshot.docs.map((doc: any) => {
-      return {
-        id: doc.id,
-        ...doc.data(),
-      };
-    });
-    const chatId = messages[0].id;
-    const snapshot2 = await db
+    const chatQuerySnapshot = await db
       .collection("chats")
-      .doc(chatId)
-      .collection("messages")
+      .where("user", "==", username)
       .get();
+    let docs = chatQuerySnapshot.docs;
 
-    const messages2 = snapshot2.docs.map((doc: any) => {
-      return {
-        id: doc.id,
-        ...doc.data(),
-      };
-    });
-    console.log(messages2[0]);
-    res.status(200).json({ messages2 });
+    let allMessages = [];
+    for (const doc of docs) {
+      const messageCollectionRef = await doc.ref.collection("messages");
+      const messageDocumentRefs = await messageCollectionRef.listDocuments();
+      const chatMessages: MessageType[] = [];
+      for (const messageDocRef of messageDocumentRefs) {
+        const messageDoc = await messageDocRef.get();
+        const data = messageDoc.data();
+        if (data) {
+          chatMessages.push(data as MessageType);
+        }
+      }
+      allMessages.push(chatMessages);
+    }
+    res.json({ allMessages });
+    console.log(res.json({ allMessages }));
+
+    // const queryData = await chatRef.collection("chats");
   } catch (e) {
     console.error(e);
     res.status(500).send("Failed to fetch chats", e);
