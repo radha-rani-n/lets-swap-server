@@ -45,8 +45,10 @@ const sendMessages = async (req: any, res: any) => {
     const chatId = [username, receipientID].join("_");
     const chatDocument = await chatCollection.doc(chatId);
     await chatDocument.set({
-      user: username,
+      users: [username, receipientID].sort(),
+      lastUpdated: Timestamp.now(),
     });
+
     const messagesCollection = chatDocument.collection("messages");
 
     await messagesCollection.add({
@@ -103,7 +105,7 @@ const getAllChats = async (req: any, res: any) => {
   try {
     const chatQuerySnapshot = await db
       .collection("chats")
-      .where("user", "==", username)
+      .where("users", "array-contains", username)
       .get();
     let docs = chatQuerySnapshot.docs;
 
@@ -122,7 +124,6 @@ const getAllChats = async (req: any, res: any) => {
       allMessages.push(chatMessages);
     }
     res.json({ allMessages });
-    console.log(res.json({ allMessages }));
 
     // const queryData = await chatRef.collection("chats");
   } catch (e) {
