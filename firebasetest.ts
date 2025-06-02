@@ -112,6 +112,9 @@ const getAllChats = async (req: any, res: any) => {
 
     let allMessages = [];
     for (const doc of docs) {
+      const chatData = doc.data();
+      const otherUser = chatData.users.find((user: string) => user != username);
+
       const messageCollectionRef = await doc.ref.collection("messages");
       const messageDocumentRefs = await messageCollectionRef.listDocuments();
       const chatMessages: MessageType[] = [];
@@ -122,7 +125,7 @@ const getAllChats = async (req: any, res: any) => {
           chatMessages.push(data as MessageType);
         }
       }
-      allMessages.push(chatMessages);
+      allMessages.push({ chatWith: otherUser, messages: chatMessages });
     }
     res.json({ allMessages });
   } catch (e) {
