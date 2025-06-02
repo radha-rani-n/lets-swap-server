@@ -39,10 +39,9 @@ const sendMessages = async (req: any, res: any) => {
   if (!receipientID || !text) {
     return res.status(400).json({ error: "Missing Fields" });
   }
-  console.log(username);
 
   try {
-    const chatId = [username, receipientID].join("_");
+    const chatId = [username, receipientID].sort().join("_");
     const chatDocument = await chatCollection.doc(chatId);
     await chatDocument.set({
       users: [username, receipientID].sort(),
@@ -68,9 +67,11 @@ const getMessages = async (req: any, res: any) => {
   const { receiverId } = req.query;
 
   const userId = await getUserId(req, res);
-
+  const { username } = await clerkClient.users.getUser(userId);
+  console.log(username);
+  console.log(receiverId);
   if (!receiverId) return res.status(400).json({ error: "Missing receiverId" });
-  const chatId = [userId, receiverId].join("_");
+  const chatId = [username, receiverId].sort().join("_");
   try {
     const snapshot = await chatCollection
       .doc(chatId)
@@ -124,8 +125,6 @@ const getAllChats = async (req: any, res: any) => {
       allMessages.push(chatMessages);
     }
     res.json({ allMessages });
-
-    // const queryData = await chatRef.collection("chats");
   } catch (e) {
     console.error(e);
     res.status(500).send("Failed to fetch chats", e);
