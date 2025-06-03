@@ -84,7 +84,7 @@ const getMessages = async (req: any, res: any) => {
         ...doc.data(),
       };
     });
-
+    console.log(messages);
     res.status(200).json({ chatId, messages });
   } catch (e) {
     console.error(e);
