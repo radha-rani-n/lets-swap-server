@@ -4,9 +4,24 @@ import cors from "cors";
 import { clerkMiddleware } from "@clerk/express";
 import texts from "./firebasetest";
 import posts from "./controllers/postsController";
-import messages from "./firebasesdk";
+const http = require("http");
+const { Server } = require("socket.io");
 const app = express();
 const PORT = process.env.PORT || 8080;
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+  },
+});
+io.on("connection", (socket) => {
+  console.log("User connected", socket.id);
+  socket.on("send-message", (data) => {
+    console.log("Message received", data);
+    io.emit("receive message", data);
+  });
+});
 app.use(
   clerkMiddleware({
     authorizedParties: ["http://localhost:5173"],
@@ -19,7 +34,8 @@ app.use(express.json());
 
 app.use("/", posts);
 app.use("/", texts);
+
 // app.use("/", messages);
-app.listen(PORT, async () => {
+server.listen(PORT, async () => {
   console.log("Server is listening to port" + PORT);
 });

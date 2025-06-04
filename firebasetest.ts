@@ -34,7 +34,7 @@ const sendMessages = async (req: any, res: any) => {
   const userId = await getUserId(req, res);
   const { username } = await clerkClient.users.getUser(userId);
 
-  const { text, receipientID } = req.body;
+  const { text, receipientID, imageUrl } = req.body;
 
   if (!receipientID || !text) {
     return res.status(400).json({ error: "Missing Fields" });
@@ -54,6 +54,8 @@ const sendMessages = async (req: any, res: any) => {
       senderId: userId,
       senderName: username,
       text,
+      imageUrl: imageUrl,
+
       timestamp: Timestamp.now(),
     });
 
