@@ -1,23 +1,13 @@
 import express from "express";
 import { clerkClient } from "@clerk/express";
-import { User } from "@clerk/express";
+import { Timestamp } from "firebase-admin/firestore";
 const router = express.Router();
 import { getAuth } from "@clerk/express";
-import { getDocs, collection, query } from "firebase/firestore";
+import { db } from "./firebase";
 type Chat = {
   text: string;
   senderName: string;
 };
-
-import { initializeApp, cert } from "firebase-admin/app";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-const serviceAccount = require("./serviceAccountKey.json");
-
-initializeApp({
-  credential: cert(serviceAccount),
-});
-
-const db = getFirestore();
 
 const chatCollection = db.collection("chats");
 
@@ -70,8 +60,7 @@ const getMessages = async (req: any, res: any) => {
 
   const userId = await getUserId(req, res);
   const { username } = await clerkClient.users.getUser(userId);
-  console.log(username);
-  console.log(receiverId);
+
   if (!receiverId) return res.status(400).json({ error: "Missing receiverId" });
   const chatId = [username, receiverId].sort().join("_");
   try {
@@ -86,7 +75,7 @@ const getMessages = async (req: any, res: any) => {
         ...doc.data(),
       };
     });
-    console.log(messages);
+
     res.status(200).json({ chatId, messages });
   } catch (e) {
     console.error(e);
@@ -118,6 +107,7 @@ const getAllChats = async (req: any, res: any) => {
       const otherUser = chatData.users.find((user: string) => user != username);
 
       const messageCollectionRef = await doc.ref.collection("messages");
+
       const messageDocumentRefs = await messageCollectionRef.listDocuments();
       const chatMessages: MessageType[] = [];
       for (const messageDocRef of messageDocumentRefs) {

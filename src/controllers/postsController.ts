@@ -1,11 +1,11 @@
 import express from "express";
-import { PrismaClient } from "../generated/prisma";
+import { PrismaClient } from "../../generated/prisma";
 import { v4 as uuidv4 } from "uuid";
 import { clerkClient, getAuth, requireAuth } from "@clerk/express";
 const prisma = new PrismaClient();
 const router = express.Router();
 import { User } from "@clerk/express";
-
+import { db } from "../firebase";
 type postProps = {
   userName: string;
   postId: string;
@@ -14,6 +14,8 @@ type postProps = {
   locationLatitude: number;
   locationLongitude: number;
 };
+
+const postCollection = db.collection("posts");
 
 const getAllPosts = async (req: any, res: any) => {
   try {

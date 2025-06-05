@@ -4,8 +4,9 @@ import cors from "cors";
 import { clerkMiddleware } from "@clerk/express";
 import texts from "./firebasetest";
 import posts from "./controllers/postsController";
-const http = require("http");
-const { Server } = require("socket.io");
+import http from "http";
+import { Server, Socket } from "socket.io";
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 const server = http.createServer(app);
@@ -15,7 +16,7 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
   },
 });
-io.on("connection", (socket) => {
+io.on("connection", (socket: Socket) => {
   console.log("User connected", socket.id);
   socket.on("send-message", (data) => {
     console.log("Message received", data);
