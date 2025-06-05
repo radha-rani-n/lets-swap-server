@@ -107,16 +107,25 @@ const getAllChats = async (req: any, res: any) => {
       const otherUser = chatData.users.find((user: string) => user != username);
 
       const messageCollectionRef = await doc.ref.collection("messages");
-
-      const messageDocumentRefs = await messageCollectionRef.listDocuments();
+      const messageSnapshot = await messageCollectionRef
+        .orderBy("timestamp")
+        .limit(1)
+        .get();
+      // const messageDocumentRefs = await messageCollectionRef.listDocuments();
       const chatMessages: MessageType[] = [];
-      for (const messageDocRef of messageDocumentRefs) {
-        const messageDoc = await messageDocRef.get();
-        const data = messageDoc.data();
+      messageSnapshot.forEach((doc) => {
+        const data = doc.data();
         if (data) {
           chatMessages.push(data as MessageType);
         }
-      }
+      });
+      // for (const messageDocRef of messageDocumentRefs) {
+      //   const messageDoc = await messageDocRef.get();
+      //   const data = messageDoc.data();
+      //   if (data) {
+      //     chatMessages.push(data as MessageType);
+      //   }
+      // }
       allMessages.push({ chatWith: otherUser, messages: chatMessages });
     }
     res.json({ allMessages });
