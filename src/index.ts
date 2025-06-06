@@ -3,7 +3,8 @@ import "dotenv/config";
 import cors from "cors";
 import { clerkMiddleware } from "@clerk/express";
 import texts from "./firebasetest";
-import posts from "./controllers/postsController";
+// import posts from "./controllers/postsController";
+import posts from "./routes/posts";
 import http from "http";
 import { Server, Socket } from "socket.io";
 

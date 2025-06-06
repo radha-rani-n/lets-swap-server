@@ -45,8 +45,7 @@ const getUserPosts = async (req: any, res: any) => {
 const addPost = async (req: any, res: any) => {
   const userId = req.auth.userId;
   const user = await clerkClient.users.getUser(userId);
-  console.log(user);
-  console.log("BODY RECEIVED:", req.body);
+
   const {
     postId,
     caption,
