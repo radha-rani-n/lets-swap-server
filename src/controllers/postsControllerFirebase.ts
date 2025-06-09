@@ -1,10 +1,11 @@
 import { clerkClient } from "@clerk/express";
 import { db } from "../firebase";
 import { ClerkClient } from "@clerk/express";
-const postCollection = db.collection("posts");
+
 import { User } from "@clerk/express";
 import { Timestamp } from "firebase-admin/firestore";
 import { snapshot } from "node:test";
+const postCollection = db.collection("posts");
 const addPost = async (req: any, res: any) => {
   const userId = req.auth.userId;
   const user = await clerkClient.users.getUser(userId);
@@ -72,5 +73,27 @@ const getUserPosts = async (req: any, res: any) => {
     res.status(500).send("Failed to get user posts");
   }
 };
+const deleteUserPost = async (req: any, res: any) => {
+  const userId = req.auth.userId;
+  const user = await clerkClient.users.getUser(userId);
+  const username = user.username;
+  if (!username) {
+    return res.status(400).json({ error: "Username not found for the user" });
+  }
+  try {
+    const { postId } = req.params;
+    const postSnapshot = await postCollection
+      .where("postId", "==", postId)
+      .where("userName", "==", username)
+      .get();
+    const postDoc = postSnapshot.docs[0];
+    await postDoc.ref.delete();
+    return res.status(200).json({ message: "Post deleted successfully" });
+  } catch (e: any) {
+    res.status(500).json({
+      error: `Error deleting post ${req.params.postProps}: ${e.message}`,
+    });
+  }
+};
 
-export { addPost, getAllPosts, getUserPosts };
+export { addPost, getAllPosts, getUserPosts, deleteUserPost };
