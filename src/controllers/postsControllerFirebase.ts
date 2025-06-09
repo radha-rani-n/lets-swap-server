@@ -2,7 +2,9 @@ import { clerkClient } from "@clerk/express";
 import { db } from "../firebase";
 import { ClerkClient } from "@clerk/express";
 const postCollection = db.collection("posts");
+import { User } from "@clerk/express";
 import { Timestamp } from "firebase-admin/firestore";
+import { snapshot } from "node:test";
 const addPost = async (req: any, res: any) => {
   const userId = req.auth.userId;
   const user = await clerkClient.users.getUser(userId);
@@ -47,5 +49,28 @@ const getAllPosts = async (req: any, res: any) => {
     res.status(500).send("Failed to get posts");
   }
 };
+const getUserPosts = async (req: any, res: any) => {
+  const userId = req.auth.userId;
+  const user: User = await clerkClient.users.getUser(userId);
+  const username = user.username;
+  if (!username) {
+    return res.status(400).json({ error: "Username not found for the user" });
+  }
+  try {
+    const userPostsSnapShot = await postCollection
+      .orderBy("timestamp")
+      .where("userName", "==", username)
+      .get();
+    const userPosts = userPostsSnapShot.docs.map((doc) => {
+      return {
+        ...doc.data(),
+      };
+    });
+    res.status(200).json(userPosts);
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("Failed to get user posts");
+  }
+};
 
-export { addPost, getAllPosts };
+export { addPost, getAllPosts, getUserPosts };
