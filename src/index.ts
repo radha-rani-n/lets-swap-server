@@ -18,10 +18,13 @@ const io = new Server(server, {
   },
 });
 io.on("connection", (socket: Socket) => {
-  console.log("User connected", socket.id);
-  socket.on("send-message", (data) => {
-    console.log("Message received", data);
+  // console.log("User connected", socket.id);
+  socket.on("send message", (data) => {
+    // console.log("Message received", data);
     io.emit("receive message", data);
+  });
+  socket.on("send photo", (data) => {
+    io.emit("receive photo", data);
   });
 });
 app.use(
@@ -37,7 +40,6 @@ app.use(express.json());
 app.use("/", posts);
 app.use("/", texts);
 
-// app.use("/", messages);
 server.listen(PORT, async () => {
   console.log("Server is listening to port" + PORT);
 });

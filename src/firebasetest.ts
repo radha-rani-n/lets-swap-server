@@ -111,7 +111,7 @@ const getAllChats = async (req: any, res: any) => {
         .orderBy("timestamp")
         .limit(1)
         .get();
-      // const messageDocumentRefs = await messageCollectionRef.listDocuments();
+
       const chatMessages: MessageType[] = [];
       messageSnapshot.forEach((doc) => {
         const data = doc.data();
@@ -119,13 +119,7 @@ const getAllChats = async (req: any, res: any) => {
           chatMessages.push(data as MessageType);
         }
       });
-      // for (const messageDocRef of messageDocumentRefs) {
-      //   const messageDoc = await messageDocRef.get();
-      //   const data = messageDoc.data();
-      //   if (data) {
-      //     chatMessages.push(data as MessageType);
-      //   }
-      // }
+
       allMessages.push({ chatWith: otherUser, messages: chatMessages });
     }
     res.json({ allMessages });
