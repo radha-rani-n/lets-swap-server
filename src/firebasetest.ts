@@ -18,7 +18,7 @@ const sendMessages = async (req: any, res: any) => {
   }
   const { username } = await clerkClient.users.getUser(userId);
 
-  const { text, receipientID, imageUrl } = req.body;
+  const { text, receipientID, imageUrl, replyTo } = req.body;
 
   if (!receipientID || !text) {
     return res.status(400).json({ error: "Missing Fields" });
@@ -34,14 +34,19 @@ const sendMessages = async (req: any, res: any) => {
 
     const messagesCollection = chatDocument.collection("messages");
 
-    await messagesCollection.add({
+    const messageData: any = {
       senderId: userId,
       senderName: username,
       text,
       imageUrl: imageUrl,
-
       timestamp: Timestamp.now(),
-    });
+    };
+
+    if (replyTo) {
+      messageData.replyTo = replyTo;
+    }
+
+    await messagesCollection.add(messageData);
 
     res.status(200).json({ message: "Message Sent", chatId });
   } catch (error) {
@@ -130,8 +135,86 @@ const getAllChats = async (req: any, res: any) => {
   }
 };
 
+const editMessage = async (req: any, res: any) => {
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized: No user ID found" });
+  }
+  const { username } = await clerkClient.users.getUser(userId);
+  const { chatWith, messageId, text } = req.body;
+
+  if (!chatWith || !messageId || !text) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  try {
+    const chatId = [username, chatWith].sort().join("_");
+    const messageRef = chatCollection
+      .doc(chatId)
+      .collection("messages")
+      .doc(messageId);
+    const messageDoc = await messageRef.get();
+
+    if (!messageDoc.exists) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+    if (messageDoc.data()?.senderName !== username) {
+      return res.status(403).json({ error: "Can only edit your own messages" });
+    }
+
+    await messageRef.update({ text, edited: true });
+    res.status(200).json({ message: "Message edited" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("Failed to edit message");
+  }
+};
+
+const deleteMessage = async (req: any, res: any) => {
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized: No user ID found" });
+  }
+  const { username } = await clerkClient.users.getUser(userId);
+  const { chatWith, messageId } = req.body;
+
+  if (!chatWith || !messageId) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  try {
+    const chatId = [username, chatWith].sort().join("_");
+    const messageRef = chatCollection
+      .doc(chatId)
+      .collection("messages")
+      .doc(messageId);
+    const messageDoc = await messageRef.get();
+
+    if (!messageDoc.exists) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+    if (messageDoc.data()?.senderName !== username) {
+      return res
+        .status(403)
+        .json({ error: "Can only delete your own messages" });
+    }
+
+    await messageRef.update({
+      text: "",
+      imageUrl: null,
+      deleted: true,
+    });
+    res.status(200).json({ message: "Message deleted" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("Failed to delete message");
+  }
+};
+
 router.get("/get-user-chats", getAllChats);
 router.post("/send-texts", sendMessages);
 router.get("/get-texts", getMessages);
+router.patch("/edit-message", editMessage);
+router.patch("/delete-message", deleteMessage);
 
 export default router;
