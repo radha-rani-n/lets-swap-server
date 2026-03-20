@@ -4,24 +4,18 @@ import { Timestamp } from "firebase-admin/firestore";
 const router = express.Router();
 import { getAuth } from "@clerk/express";
 import { db } from "./firebase";
-type Chat = {
-  text: string;
-  senderName: string;
-};
-
 const chatCollection = db.collection("chats");
 
-const getUserId = async (req: any, res: any) => {
+const getUserId = (req: any): string | null => {
   const { userId } = getAuth(req);
-
-  if (!userId) {
-    return res.status(401).json({ error: "Unauthorized: No user ID found" });
-  }
-  return userId;
+  return userId ?? null;
 };
 
 const sendMessages = async (req: any, res: any) => {
-  const userId = await getUserId(req, res);
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized: No user ID found" });
+  }
   const { username } = await clerkClient.users.getUser(userId);
 
   const { text, receipientID, imageUrl } = req.body;
@@ -32,7 +26,7 @@ const sendMessages = async (req: any, res: any) => {
 
   try {
     const chatId = [username, receipientID].sort().join("_");
-    const chatDocument = await chatCollection.doc(chatId);
+    const chatDocument = chatCollection.doc(chatId);
     await chatDocument.set({
       users: [username, receipientID].sort(),
       lastUpdated: Timestamp.now(),
@@ -58,7 +52,10 @@ const sendMessages = async (req: any, res: any) => {
 const getMessages = async (req: any, res: any) => {
   const { receiverId } = req.query;
 
-  const userId = await getUserId(req, res);
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized: No user ID found" });
+  }
   const { username } = await clerkClient.users.getUser(userId);
 
   if (!receiverId) return res.status(400).json({ error: "Missing receiverId" });
@@ -84,14 +81,18 @@ const getMessages = async (req: any, res: any) => {
 };
 
 type MessageType = {
-  sender: string;
-  receiver: string;
+  senderId: string;
+  senderName: string;
   text: string;
-  time: string;
+  imageUrl?: string;
+  timestamp: any;
 };
 
 const getAllChats = async (req: any, res: any) => {
-  const userId = await getUserId(req, res);
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized: No user ID found" });
+  }
   const { username } = await clerkClient.users.getUser(userId);
 
   try {
@@ -106,7 +107,7 @@ const getAllChats = async (req: any, res: any) => {
       const chatData = doc.data();
       const otherUser = chatData.users.find((user: string) => user != username);
 
-      const messageCollectionRef = await doc.ref.collection("messages");
+      const messageCollectionRef = doc.ref.collection("messages");
       const messageSnapshot = await messageCollectionRef
         .orderBy("timestamp")
         .limit(1)
@@ -125,7 +126,7 @@ const getAllChats = async (req: any, res: any) => {
     res.json({ allMessages });
   } catch (e) {
     console.error(e);
-    res.status(500).send("Failed to fetch chats", e);
+    res.status(500).send("Failed to fetch chats");
   }
 };
 

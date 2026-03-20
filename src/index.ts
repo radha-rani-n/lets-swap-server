@@ -41,5 +41,5 @@ app.use("/", posts);
 app.use("/", texts);
 
 server.listen(PORT, async () => {
-  console.log("Server is listening to port" + PORT);
+  console.log("Server is listening to port " + PORT);
 });
