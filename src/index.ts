@@ -11,9 +11,10 @@ import { Server, Socket } from "socket.io";
 const app = express();
 const PORT = process.env.PORT || 8080;
 const server = http.createServer(app);
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: CORS_ORIGIN,
     methods: ["GET", "POST"],
   },
 });
@@ -29,7 +30,7 @@ io.on("connection", (socket: Socket) => {
 });
 app.use(
   clerkMiddleware({
-    authorizedParties: ["http://localhost:5173"],
+    authorizedParties: [CORS_ORIGIN],
     publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
     secretKey: process.env.CLERK_SECRET_KEY,
   })
