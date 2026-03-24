@@ -1,30 +1,44 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Post {
-  postId String @unique
-  userName String
-  plantImageUrl String
-  caption String?
-  locationLatitude Int
-  locationLongitude Int
+  id                Int      @id @default(autoincrement())
+  postId            String   @unique
+  userName          String
+  plantImageUrl     String
+  caption           String?
+  locationLatitude  Float
+  locationLongitude Float
+  status            String   @default("available")
+  timestamp         DateTime @default(now())
 }
-model Chats {
-  userName String
-  chatId Int @unique
-  message String
-  timeStamp Int
+
+model Chat {
+  id          Int       @id @default(autoincrement())
+  chatId      String    @unique
+  users       String[]
+  lastUpdated DateTime  @default(now())
+  messages    Message[]
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  chatId     String
+  chat       Chat     @relation(fields: [chatId], references: [chatId])
+  senderId   String
+  senderName String
+  text       String
+  imageUrl   String?
+  timestamp  DateTime @default(now())
+  replyTo    String?
+  edited     Boolean  @default(false)
+  deleted    Boolean  @default(false)
 }

@@ -1,10 +1,8 @@
 import express from "express";
 import { clerkClient } from "@clerk/express";
-import { Timestamp } from "firebase-admin/firestore";
 const router = express.Router();
 import { getAuth } from "@clerk/express";
-import { db } from "./firebase";
-const chatCollection = db.collection("chats");
+import prisma from "./prisma";
 
 const getUserId = (req: any): string | null => {
   const { userId } = getAuth(req);
@@ -26,27 +24,29 @@ const sendMessages = async (req: any, res: any) => {
 
   try {
     const chatId = [username, receipientID].sort().join("_");
-    const chatDocument = chatCollection.doc(chatId);
-    await chatDocument.set({
-      users: [username, receipientID].sort(),
-      lastUpdated: Timestamp.now(),
+
+    await prisma.chat.upsert({
+      where: { chatId },
+      update: { lastUpdated: new Date() },
+      create: {
+        chatId,
+        users: [username!, receipientID].sort(),
+      },
     });
 
-    const messagesCollection = chatDocument.collection("messages");
-
     const messageData: any = {
+      chatId,
       senderId: userId,
-      senderName: username,
+      senderName: username!,
       text,
-      imageUrl: imageUrl,
-      timestamp: Timestamp.now(),
+      imageUrl: imageUrl || null,
     };
 
     if (replyTo) {
       messageData.replyTo = replyTo;
     }
 
-    await messagesCollection.add(messageData);
+    await prisma.message.create({ data: messageData });
 
     res.status(200).json({ message: "Message Sent", chatId });
   } catch (error) {
@@ -54,6 +54,7 @@ const sendMessages = async (req: any, res: any) => {
     res.status(500).send("Failed to send message");
   }
 };
+
 const getMessages = async (req: any, res: any) => {
   const { receiverId } = req.query;
 
@@ -66,16 +67,9 @@ const getMessages = async (req: any, res: any) => {
   if (!receiverId) return res.status(400).json({ error: "Missing receiverId" });
   const chatId = [username, receiverId].sort().join("_");
   try {
-    const snapshot = await chatCollection
-      .doc(chatId)
-      .collection("messages")
-      .orderBy("timestamp")
-      .get();
-    const messages = snapshot.docs.map((doc: any) => {
-      return {
-        id: doc.id,
-        ...doc.data(),
-      };
+    const messages = await prisma.message.findMany({
+      where: { chatId },
+      orderBy: { timestamp: "asc" },
     });
 
     res.status(200).json({ chatId, messages });
@@ -89,8 +83,8 @@ type MessageType = {
   senderId: string;
   senderName: string;
   text: string;
-  imageUrl?: string;
-  timestamp: any;
+  imageUrl?: string | null;
+  timestamp: Date;
 };
 
 const getAllChats = async (req: any, res: any) => {
@@ -101,33 +95,24 @@ const getAllChats = async (req: any, res: any) => {
   const { username } = await clerkClient.users.getUser(userId);
 
   try {
-    const chatQuerySnapshot = await db
-      .collection("chats")
-      .where("users", "array-contains", username)
-      .get();
-    let docs = chatQuerySnapshot.docs;
+    const chats = await prisma.chat.findMany({
+      where: { users: { has: username! } },
+      include: {
+        messages: {
+          orderBy: { timestamp: "asc" },
+          take: 1,
+        },
+      },
+    });
 
-    let allMessages = [];
-    for (const doc of docs) {
-      const chatData = doc.data();
-      const otherUser = chatData.users.find((user: string) => user != username);
+    const allMessages = chats.map((chat) => {
+      const otherUser = chat.users.find((user: string) => user !== username);
+      return {
+        chatWith: otherUser,
+        messages: chat.messages as MessageType[],
+      };
+    });
 
-      const messageCollectionRef = doc.ref.collection("messages");
-      const messageSnapshot = await messageCollectionRef
-        .orderBy("timestamp")
-        .limit(1)
-        .get();
-
-      const chatMessages: MessageType[] = [];
-      messageSnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data) {
-          chatMessages.push(data as MessageType);
-        }
-      });
-
-      allMessages.push({ chatWith: otherUser, messages: chatMessages });
-    }
     res.json({ allMessages });
   } catch (e) {
     console.error(e);
@@ -149,20 +134,21 @@ const editMessage = async (req: any, res: any) => {
 
   try {
     const chatId = [username, chatWith].sort().join("_");
-    const messageRef = chatCollection
-      .doc(chatId)
-      .collection("messages")
-      .doc(messageId);
-    const messageDoc = await messageRef.get();
+    const message = await prisma.message.findFirst({
+      where: { id: parseInt(messageId), chatId },
+    });
 
-    if (!messageDoc.exists) {
+    if (!message) {
       return res.status(404).json({ error: "Message not found" });
     }
-    if (messageDoc.data()?.senderName !== username) {
+    if (message.senderName !== username) {
       return res.status(403).json({ error: "Can only edit your own messages" });
     }
 
-    await messageRef.update({ text, edited: true });
+    await prisma.message.update({
+      where: { id: message.id },
+      data: { text, edited: true },
+    });
     res.status(200).json({ message: "Message edited" });
   } catch (e) {
     console.error(e);
@@ -184,25 +170,26 @@ const deleteMessage = async (req: any, res: any) => {
 
   try {
     const chatId = [username, chatWith].sort().join("_");
-    const messageRef = chatCollection
-      .doc(chatId)
-      .collection("messages")
-      .doc(messageId);
-    const messageDoc = await messageRef.get();
+    const message = await prisma.message.findFirst({
+      where: { id: parseInt(messageId), chatId },
+    });
 
-    if (!messageDoc.exists) {
+    if (!message) {
       return res.status(404).json({ error: "Message not found" });
     }
-    if (messageDoc.data()?.senderName !== username) {
+    if (message.senderName !== username) {
       return res
         .status(403)
         .json({ error: "Can only delete your own messages" });
     }
 
-    await messageRef.update({
-      text: "",
-      imageUrl: null,
-      deleted: true,
+    await prisma.message.update({
+      where: { id: message.id },
+      data: {
+        text: "",
+        imageUrl: null,
+        deleted: true,
+      },
     });
     res.status(200).json({ message: "Message deleted" });
   } catch (e) {

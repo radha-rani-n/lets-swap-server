@@ -1,8 +1,7 @@
 import { clerkClient } from "@clerk/express";
-import { db } from "../firebase";
 import { User } from "@clerk/express";
-import { Timestamp } from "firebase-admin/firestore";
-const postCollection = db.collection("posts");
+import prisma from "../prisma";
+
 const addPost = async (req: any, res: any) => {
   const userId = req.auth.userId;
   const user = await clerkClient.users.getUser(userId);
@@ -17,15 +16,16 @@ const addPost = async (req: any, res: any) => {
     return res.status(400).json({ error: "some data is missing" });
   }
   try {
-    await postCollection.add({
-      userName: user.username,
-      postId: postId,
-      caption: caption,
-      plantImageUrl: plantImageUrl,
-      locationLatitude: locationLatitude,
-      locationLongitude: locationLongitude,
-      status: "available",
-      timestamp: Timestamp.now(),
+    await prisma.post.create({
+      data: {
+        userName: user.username!,
+        postId,
+        caption,
+        plantImageUrl,
+        locationLatitude,
+        locationLongitude,
+        status: "available",
+      },
     });
     res.status(200).json({ messages: "Post added successfully", postId });
   } catch (e) {
@@ -33,21 +33,19 @@ const addPost = async (req: any, res: any) => {
     res.status(500).send("Failed to add post");
   }
 };
+
 const getAllPosts = async (req: any, res: any) => {
   try {
-    const snapshot = await postCollection.orderBy("timestamp").get();
-    const allPosts = snapshot.docs.map((doc: any) => {
-      return {
-        ...doc.data(),
-      };
+    const allPosts = await prisma.post.findMany({
+      orderBy: { timestamp: "asc" },
     });
-
     res.status(200).json(allPosts);
   } catch (e) {
     console.error(e);
     res.status(500).send("Failed to get posts");
   }
 };
+
 const getUserPosts = async (req: any, res: any) => {
   const userId = req.auth.userId;
   const user: User = await clerkClient.users.getUser(userId);
@@ -56,14 +54,9 @@ const getUserPosts = async (req: any, res: any) => {
     return res.status(400).json({ error: "Username not found for the user" });
   }
   try {
-    const userPostsSnapShot = await postCollection
-      .orderBy("timestamp")
-      .where("userName", "==", username)
-      .get();
-    const userPosts = userPostsSnapShot.docs.map((doc) => {
-      return {
-        ...doc.data(),
-      };
+    const userPosts = await prisma.post.findMany({
+      where: { userName: username },
+      orderBy: { timestamp: "asc" },
     });
     res.status(200).json(userPosts);
   } catch (e) {
@@ -71,6 +64,7 @@ const getUserPosts = async (req: any, res: any) => {
     res.status(500).send("Failed to get user posts");
   }
 };
+
 const deleteUserPost = async (req: any, res: any) => {
   const userId = req.auth.userId;
   const user = await clerkClient.users.getUser(userId);
@@ -80,15 +74,13 @@ const deleteUserPost = async (req: any, res: any) => {
   }
   try {
     const { postId } = req.params;
-    const postSnapshot = await postCollection
-      .where("postId", "==", postId)
-      .where("userName", "==", username)
-      .get();
-    if (postSnapshot.empty) {
+    const post = await prisma.post.findFirst({
+      where: { postId, userName: username },
+    });
+    if (!post) {
       return res.status(404).json({ error: "Post not found" });
     }
-    const postDoc = postSnapshot.docs[0];
-    await postDoc.ref.delete();
+    await prisma.post.delete({ where: { postId } });
     return res.status(200).json({ message: "Post deleted successfully" });
   } catch (e: any) {
     res.status(500).json({
@@ -113,15 +105,16 @@ const updatePostStatus = async (req: any, res: any) => {
     });
   }
   try {
-    const postSnapshot = await postCollection
-      .where("postId", "==", postId)
-      .where("userName", "==", username)
-      .get();
-    if (postSnapshot.empty) {
+    const post = await prisma.post.findFirst({
+      where: { postId, userName: username },
+    });
+    if (!post) {
       return res.status(404).json({ error: "Post not found" });
     }
-    const postDoc = postSnapshot.docs[0];
-    await postDoc.ref.update({ status });
+    await prisma.post.update({
+      where: { postId },
+      data: { status },
+    });
     return res
       .status(200)
       .json({ message: "Post status updated successfully", status });
