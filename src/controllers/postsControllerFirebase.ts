@@ -1,10 +1,18 @@
 import { clerkClient } from "@clerk/express";
-import { User } from "@clerk/express";
 import prisma from "../prisma";
 
-const addPost = async (req: any, res: any) => {
-  const userId = req.auth.userId;
+const GUEST_USERNAME = "guest_user";
+
+const getUsername = async (req: any): Promise<string | null> => {
+  const userId = req.auth?.userId;
+  if (!userId) return GUEST_USERNAME;
   const user = await clerkClient.users.getUser(userId);
+  return user.username || null;
+};
+
+const addPost = async (req: any, res: any) => {
+  const username = await getUsername(req);
+  if (!username) return res.status(400).json({ error: "Username not found" });
   const {
     postId,
     caption,
@@ -18,7 +26,7 @@ const addPost = async (req: any, res: any) => {
   try {
     await prisma.post.create({
       data: {
-        userName: user.username!,
+        userName: username,
         postId,
         caption,
         plantImageUrl,
@@ -47,9 +55,7 @@ const getAllPosts = async (req: any, res: any) => {
 };
 
 const getUserPosts = async (req: any, res: any) => {
-  const userId = req.auth.userId;
-  const user: User = await clerkClient.users.getUser(userId);
-  const username = user.username;
+  const username = await getUsername(req);
   if (!username) {
     return res.status(400).json({ error: "Username not found for the user" });
   }
@@ -66,9 +72,7 @@ const getUserPosts = async (req: any, res: any) => {
 };
 
 const deleteUserPost = async (req: any, res: any) => {
-  const userId = req.auth.userId;
-  const user = await clerkClient.users.getUser(userId);
-  const username = user.username;
+  const username = await getUsername(req);
   if (!username) {
     return res.status(400).json({ error: "Username not found for the user" });
   }
@@ -90,9 +94,7 @@ const deleteUserPost = async (req: any, res: any) => {
 };
 
 const updatePostStatus = async (req: any, res: any) => {
-  const userId = req.auth.userId;
-  const user = await clerkClient.users.getUser(userId);
-  const username = user.username;
+  const username = await getUsername(req);
   if (!username) {
     return res.status(400).json({ error: "Username not found for the user" });
   }

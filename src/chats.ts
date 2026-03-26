@@ -4,9 +4,18 @@ const router = express.Router();
 import { getAuth } from "@clerk/express";
 import prisma from "./prisma";
 
+const GUEST_USERNAME = "guest_user";
+const GUEST_USER_ID = "guest";
+
 const getUserId = (req: any): string | null => {
   const { userId } = getAuth(req);
-  return userId ?? null;
+  return userId ?? GUEST_USER_ID;
+};
+
+const getUsername = async (userId: string): Promise<string> => {
+  if (userId === GUEST_USER_ID) return GUEST_USERNAME;
+  const { username } = await clerkClient.users.getUser(userId);
+  return username!;
 };
 
 const sendMessages = async (req: any, res: any) => {
@@ -14,7 +23,7 @@ const sendMessages = async (req: any, res: any) => {
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized: No user ID found" });
   }
-  const { username } = await clerkClient.users.getUser(userId);
+  const username = await getUsername(userId);
 
   const { text, receipientID, imageUrl, replyTo } = req.body;
 
@@ -30,14 +39,14 @@ const sendMessages = async (req: any, res: any) => {
       update: { lastUpdated: new Date() },
       create: {
         chatId,
-        users: [username!, receipientID].sort(),
+        users: [username, receipientID].sort(),
       },
     });
 
     const messageData: any = {
       chatId,
       senderId: userId,
-      senderName: username!,
+      senderName: username,
       text,
       imageUrl: imageUrl || null,
     };
@@ -62,7 +71,7 @@ const getMessages = async (req: any, res: any) => {
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized: No user ID found" });
   }
-  const { username } = await clerkClient.users.getUser(userId);
+  const username = await getUsername(userId);
 
   if (!receiverId) return res.status(400).json({ error: "Missing receiverId" });
   const chatId = [username, receiverId].sort().join("_");
@@ -92,7 +101,7 @@ const getAllChats = async (req: any, res: any) => {
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized: No user ID found" });
   }
-  const { username } = await clerkClient.users.getUser(userId);
+  const username = await getUsername(userId);
 
   try {
     const chats = await prisma.chat.findMany({
@@ -125,7 +134,7 @@ const editMessage = async (req: any, res: any) => {
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized: No user ID found" });
   }
-  const { username } = await clerkClient.users.getUser(userId);
+  const username = await getUsername(userId);
   const { chatWith, messageId, text } = req.body;
 
   if (!chatWith || !messageId || !text) {
@@ -161,7 +170,7 @@ const deleteMessage = async (req: any, res: any) => {
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized: No user ID found" });
   }
-  const { username } = await clerkClient.users.getUser(userId);
+  const username = await getUsername(userId);
   const { chatWith, messageId } = req.body;
 
   if (!chatWith || !messageId) {
