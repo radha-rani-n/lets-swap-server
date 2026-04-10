@@ -1,12 +1,22 @@
 import { clerkClient } from "@clerk/express";
-import { User } from "@clerk/express";
 import prisma from "../prisma";
 
-const addPost = async (req: any, res: any) => {
-  const userId = req.auth.userId;
+const GUEST_USERNAME = "guest_user";
+
+const getUsername = async (req: any): Promise<string | null> => {
+  const userId = req.auth?.userId;
+  if (!userId) return GUEST_USERNAME;
   const user = await clerkClient.users.getUser(userId);
+  return user.username || null;
+};
+
+const addPost = async (req: any, res: any) => {
+  const username = await getUsername(req);
+  if (!username) return res.status(400).json({ error: "Username not found" });
   const {
     postId,
+    plantName,
+    plantHeight,
     caption,
     plantImageUrl,
     locationLatitude,
@@ -18,8 +28,10 @@ const addPost = async (req: any, res: any) => {
   try {
     await prisma.post.create({
       data: {
-        userName: user.username!,
+        userName: username,
         postId,
+        plantName: plantName?.trim() || null,
+        plantHeight: plantHeight?.trim() || null,
         caption,
         plantImageUrl,
         locationLatitude,
@@ -47,28 +59,24 @@ const getAllPosts = async (req: any, res: any) => {
 };
 
 const getUserPosts = async (req: any, res: any) => {
-  const userId = req.auth.userId;
-  const user: User = await clerkClient.users.getUser(userId);
-  const username = user.username;
-  if (!username) {
-    return res.status(400).json({ error: "Username not found for the user" });
-  }
   try {
+    const username = await getUsername(req);
+    if (!username) {
+      return res.status(400).json({ error: "Username not found for the user" });
+    }
     const userPosts = await prisma.post.findMany({
       where: { userName: username },
       orderBy: { timestamp: "asc" },
     });
     res.status(200).json(userPosts);
   } catch (e) {
-    console.error(e);
+    console.error("getUserPosts failed:", e);
     res.status(500).send("Failed to get user posts");
   }
 };
 
 const deleteUserPost = async (req: any, res: any) => {
-  const userId = req.auth.userId;
-  const user = await clerkClient.users.getUser(userId);
-  const username = user.username;
+  const username = await getUsername(req);
   if (!username) {
     return res.status(400).json({ error: "Username not found for the user" });
   }
@@ -90,9 +98,7 @@ const deleteUserPost = async (req: any, res: any) => {
 };
 
 const updatePostStatus = async (req: any, res: any) => {
-  const userId = req.auth.userId;
-  const user = await clerkClient.users.getUser(userId);
-  const username = user.username;
+  const username = await getUsername(req);
   if (!username) {
     return res.status(400).json({ error: "Username not found for the user" });
   }
