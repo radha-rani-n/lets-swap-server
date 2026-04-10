@@ -15,6 +15,8 @@ const addPost = async (req: any, res: any) => {
   if (!username) return res.status(400).json({ error: "Username not found" });
   const {
     postId,
+    plantName,
+    plantHeight,
     caption,
     plantImageUrl,
     locationLatitude,
@@ -28,6 +30,8 @@ const addPost = async (req: any, res: any) => {
       data: {
         userName: username,
         postId,
+        plantName: plantName?.trim() || null,
+        plantHeight: plantHeight?.trim() || null,
         caption,
         plantImageUrl,
         locationLatitude,
@@ -55,18 +59,18 @@ const getAllPosts = async (req: any, res: any) => {
 };
 
 const getUserPosts = async (req: any, res: any) => {
-  const username = await getUsername(req);
-  if (!username) {
-    return res.status(400).json({ error: "Username not found for the user" });
-  }
   try {
+    const username = await getUsername(req);
+    if (!username) {
+      return res.status(400).json({ error: "Username not found for the user" });
+    }
     const userPosts = await prisma.post.findMany({
       where: { userName: username },
       orderBy: { timestamp: "asc" },
     });
     res.status(200).json(userPosts);
   } catch (e) {
-    console.error(e);
+    console.error("getUserPosts failed:", e);
     res.status(500).send("Failed to get user posts");
   }
 };

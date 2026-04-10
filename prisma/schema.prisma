@@ -12,6 +12,8 @@ model Post {
   id                Int      @id @default(autoincrement())
   postId            String   @unique
   userName          String
+  plantName         String?
+  plantHeight       String?
   plantImageUrl     String
   caption           String?
   locationLatitude  Float
