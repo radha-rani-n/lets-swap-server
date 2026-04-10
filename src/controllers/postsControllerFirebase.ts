@@ -10,6 +10,8 @@ const getUsername = async (req: any): Promise<string | null> => {
   return user.username || null;
 };
 
+const MAX_IMAGES_PER_POST = 5;
+
 const addPost = async (req: any, res: any) => {
   const username = await getUsername(req);
   if (!username) return res.status(400).json({ error: "Username not found" });
@@ -19,12 +21,26 @@ const addPost = async (req: any, res: any) => {
     plantHeight,
     caption,
     plantImageUrl,
+    plantImageUrls,
     locationLatitude,
     locationLongitude,
   } = req.body;
-  if (!plantImageUrl || !locationLatitude || !locationLongitude || !postId) {
+
+  const images: string[] = Array.isArray(plantImageUrls) && plantImageUrls.length > 0
+    ? plantImageUrls.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
+    : plantImageUrl
+      ? [plantImageUrl]
+      : [];
+
+  if (images.length === 0 || !locationLatitude || !locationLongitude || !postId) {
     return res.status(400).json({ error: "some data is missing" });
   }
+  if (images.length > MAX_IMAGES_PER_POST) {
+    return res
+      .status(400)
+      .json({ error: `A post can have at most ${MAX_IMAGES_PER_POST} images` });
+  }
+
   try {
     await prisma.post.create({
       data: {
@@ -33,7 +49,8 @@ const addPost = async (req: any, res: any) => {
         plantName: plantName?.trim() || null,
         plantHeight: plantHeight?.trim() || null,
         caption,
-        plantImageUrl,
+        plantImageUrl: images[0],
+        plantImageUrls: images,
         locationLatitude,
         locationLongitude,
         status: "available",

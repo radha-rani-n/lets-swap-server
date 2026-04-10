@@ -15,6 +15,7 @@ model Post {
   plantName         String?
   plantHeight       String?
   plantImageUrl     String
+  plantImageUrls    String[] @default([])
   caption           String?
   locationLatitude  Float
   locationLongitude Float
